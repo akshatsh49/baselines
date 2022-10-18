@@ -124,7 +124,7 @@ def learn(env,
         observation_shape=env.observation_space.shape,
         num_actions=env.action_space.n,
         lr=lr,
-        grad_norm_clipping=10,
+        grad_norm_clipping=1,
         gamma=gamma,
         param_noise=param_noise
     )
