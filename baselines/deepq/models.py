@@ -45,3 +45,56 @@ def build_q_func(network, hiddens=[256], dueling=True, layer_norm=False, **netwo
         return tf.keras.Model(inputs=model.inputs, outputs=[q_out])
 
     return q_func_builder
+
+def build_q_func_multihead(network, hiddens=[256], dueling=True, layer_norm=False, **network_kwargs):
+    if isinstance(network, str):
+        from baselines.common.models import get_network_builder
+        network = get_network_builder(network)(**network_kwargs)
+
+    def q_func_builder(input_shape, num_actions, n_heads):
+        model = network(input_shape)    # sub Functional model (excluding top layer), backbone
+
+        # wrapping the sub Functional model with layers that compute action scores into another Functional model.
+        latent = model.outputs
+        if len(latent) > 1:
+            if latent[1] is not None:
+                raise NotImplementedError("DQN is not compatible with recurrent policies yet")
+        latent = latent[0]
+
+        latent = tf.keras.layers.Flatten()(latent)
+
+        with tf.name_scope("action_value"):
+            head_action_outputs = [None] * n_heads
+            for head in range(n_heads):
+                action_out = latent
+                for hidden in hiddens:
+                    action_out = tf.keras.layers.Dense(units=hidden, activation=None)(action_out)
+                    if layer_norm:
+                        action_out = tf.keras.layers.LayerNormalization(center=True, scale=True)(action_out)
+                    action_out = tf.nn.relu(action_out)
+                action_scores = tf.keras.layers.Dense(units=num_actions, activation=None)(action_out)
+                head_action_outputs[head] = action_scores
+            head_action_outputs = tf.convert_to_tensor(head_action_outputs)
+
+        if dueling:
+            head_state_outputs = [None] * n_heads
+            for head in range(n_heads):
+                with tf.name_scope("state_value"):
+                    state_out = latent
+                    for hidden in hiddens:
+                        state_out = tf.keras.layers.Dense(units=hidden, activation=None)(state_out)
+                        if layer_norm:
+                            state_out = tf.keras.layers.LayerNormalization(center=True, scale=True)(state_out)
+                        state_out = tf.nn.relu(state_out)
+                    state_score = tf.keras.layers.Dense(units=1, activation=None)(state_out)
+                    head_state_outputs[head] = state_score
+
+            head_state_outputs = tf.convert_to_tensor(head_state_outputs)
+            action_scores_mean = tf.reduce_mean(head_action_outputs, 1) #????????????? confirm
+            action_scores_centered = head_action_outputs - tf.expand_dims(action_scores_mean, 1) #????????????? confirm
+            q_out = head_state_outputs + action_scores_centered
+        else:
+            q_out = head_action_outputs
+        return tf.keras.Model(inputs=model.inputs, outputs=[q_out])
+
+    return q_func_builder

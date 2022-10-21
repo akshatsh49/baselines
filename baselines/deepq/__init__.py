@@ -1,5 +1,6 @@
 from baselines.deepq import models  # noqa F401
 from baselines.deepq.deepq_learner import DEEPQ  # noqa F401
+from baselines.deepq.deepq_learner_multihead import DEEPQ_multihead  # noqa F401
 from baselines.deepq.deepq import learn  # noqa F401
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer  # noqa F401
 
