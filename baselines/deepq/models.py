@@ -90,8 +90,8 @@ def build_q_func_multihead(network, hiddens=[256], dueling=True, layer_norm=Fals
                     head_state_outputs[head] = state_score
 
             head_state_outputs = tf.convert_to_tensor(head_state_outputs)
-            action_scores_mean = tf.reduce_mean(head_action_outputs, 1) #????????????? confirm
-            action_scores_centered = head_action_outputs - tf.expand_dims(action_scores_mean, 1) #????????????? confirm
+            action_scores_mean = tf.reduce_mean(head_action_outputs, 2)
+            action_scores_centered = head_action_outputs - tf.expand_dims(action_scores_mean, 2)
             q_out = head_state_outputs + action_scores_centered
         else:
             q_out = head_action_outputs
