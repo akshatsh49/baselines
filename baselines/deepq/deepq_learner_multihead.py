@@ -95,6 +95,7 @@ The functions in this model:
 
 """
 import tensorflow as tf
+from tensorflow import keras
 import numpy as np
 
 @tf.function
@@ -129,11 +130,15 @@ class DEEPQ_multihead(tf.Module):
       self.eps = tf.Variable(0., name="eps")
 
     @tf.function
-    def step(self, obs, stochastic=True, update_eps=-1):
+    def step(self, obs, stochastic=True, update_eps=-1, **step_args):
       if self.param_noise:
         raise ValueError('not supporting noise yet')
       else:
-        q_values = self.q_network(obs)
+        if step_args.get('evaluating', None) == True:
+            q_values = self.q_network(obs, training = False)
+        else :
+            q_values = self.q_network(obs)
+
         q_values = tf.math.reduce_mean(q_values, axis = 0) # average head outputs
         deterministic_actions = tf.argmax(q_values, axis=1)
         batch_size = tf.shape(obs)[0]
@@ -193,7 +198,7 @@ class DEEPQ_multihead(tf.Module):
 
     #   final_vars = [p.numpy() for p in self.q_network.trainable_variables]
 
-      return td_error
+      return weighted_error
 
     @tf.function(autograph=False)
     def update_target(self):
@@ -207,7 +212,20 @@ class DEEPQ_multihead(tf.Module):
 
     #   final_vars = [p.numpy() for p in target_q_vars]
     #   print(f'step taken to update target net is {[np.linalg.norm(p-q) for p,q in zip(final_vars, init_vars)]}')
-      
+    
+    @tf.function
+    def uncertainty_estimate(self, obs):
+        q_values = self.q_network(obs, training = False)
+        uncertainty = tf.math.reduce_variance(q_values, axis = 0, keepdims = True)
+        uncertainty = tf.reduce_mean(uncertainty, axis = 2, keepdims = True)
+        uncertainty = tf.stop_gradient(uncertainty[0,:,0])
+        return uncertainty
+    
+    def get_network_weights(self):
+        return {
+            'q_net' : self.q_network.trainable_variables, 
+            'target_net' : self.target_q_network.trainable_variables, 
+        }
 
 
 
