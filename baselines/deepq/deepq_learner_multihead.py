@@ -121,7 +121,17 @@ class DEEPQ_multihead(tf.Module):
       self.param_noise_filter_func = param_noise_filter_func
       self.grad_norm_clipping = grad_norm_clipping
 
-      self.optimizer = tf.keras.optimizers.Adam(lr)
+      lr_schedule = keras.optimizers.schedules.PolynomialDecay(
+            initial_learning_rate=lr,
+            decay_steps=int(5e4),
+            end_learning_rate=5e-5,
+      )
+
+      self.optimizer = tf.keras.optimizers.Adam(
+        decay = 1e-4, 
+        learning_rate = lr_schedule,
+        # learning_rate = lr,
+      )
 
       with tf.name_scope('q_network'):
         self.q_network = q_func(observation_shape, num_actions, num_heads)
