@@ -225,7 +225,7 @@ class DEEPQ_multihead(tf.Module):
     
     @tf.function
     def uncertainty_estimate(self, obs):
-        q_values = self.q_network(obs, training = False)
+        q_values = self.q_network(obs)
         uncertainty = tf.math.reduce_variance(q_values, axis = 0, keepdims = True)
         uncertainty = tf.reduce_mean(uncertainty, axis = 2, keepdims = True)
         uncertainty = tf.stop_gradient(uncertainty[0,:,0])
