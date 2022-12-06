@@ -180,7 +180,7 @@ class DEEPQ(tf.Module):
       grads_and_vars = zip(grads, self.q_network.trainable_variables)
       self.optimizer.apply_gradients(grads_and_vars)
 
-      return td_error
+      return td_error, q_t_selected # remove this, just for testing
 
     @tf.function(autograph=False)
     def update_target(self):
@@ -189,3 +189,8 @@ class DEEPQ(tf.Module):
       for var, var_target in zip(q_vars, target_q_vars):
         var_target.assign(var)
 
+    def get_network_weights(self):
+        return {
+            'q_net' : self.q_network.trainable_variables, 
+            'target_net' : self.target_q_network.trainable_variables, 
+        }

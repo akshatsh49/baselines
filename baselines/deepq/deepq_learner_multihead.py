@@ -127,7 +127,7 @@ class DEEPQ_multihead(tf.Module):
             end_learning_rate=5e-5,
       )
 
-      self.optimizer = tf.keras.optimizers.Adam(
+      self.optimizer = tf.keras.optimizers.legacy.Adam(
         decay = 1e-4, 
         learning_rate = lr_schedule,
         # learning_rate = lr,
@@ -208,7 +208,7 @@ class DEEPQ_multihead(tf.Module):
 
     #   final_vars = [p.numpy() for p in self.q_network.trainable_variables]
 
-      return weighted_error
+      return weighted_error, q_t_selected
 
     @tf.function(autograph=False)
     def update_target(self):
