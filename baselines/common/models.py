@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from baselines.a2c.utils import ortho_init, conv
+import edward2 as ed
 
 mapping = {}
 
@@ -28,6 +29,21 @@ def nature_cnn(input_shape, **conv_kwargs):
     network = tf.keras.Model(inputs=[x_input], outputs=[h3])
     return network
 
+def mlp_network(num_layers, num_hidden, activation, spectral_normalized:bool = False):
+    def network_maker(input_shape):
+        print('input shape is {}'.format(input_shape))
+        x_input = tf.keras.Input(shape=input_shape)
+        h = x_input
+        for i in range(num_layers):
+            layer = tf.keras.layers.Dense(units=num_hidden, kernel_initializer=ortho_init(np.sqrt(2)), name='mlp_fc{}'.format(i), activation=activation)
+            if spectral_normalized :
+                layer = ed.layers.SpectralNormalization(layer)
+            h = layer(h)
+
+        network = tf.keras.Model(inputs=[x_input], outputs=[h])
+        return network
+    return network_maker
+
 @register("mlp")
 def mlp(num_layers=2, num_hidden=64, activation=tf.tanh):
     """
@@ -47,20 +63,11 @@ def mlp(num_layers=2, num_hidden=64, activation=tf.tanh):
 
     function that builds fully connected network with a given input tensor / placeholder
     """
-    def network_fn(input_shape):
-        print('input shape is {}'.format(input_shape))
-        x_input = tf.keras.Input(shape=input_shape)
-        # h = tf.keras.layers.Flatten(x_input)
-        h = x_input
-        for i in range(num_layers):
-          h = tf.keras.layers.Dense(units=num_hidden, kernel_initializer=ortho_init(np.sqrt(2)),
-                                    name='mlp_fc{}'.format(i), activation=activation)(h)
+    return mlp_network(num_layers, num_hidden, activation, spectral_normalized = False)
 
-        network = tf.keras.Model(inputs=[x_input], outputs=[h])
-        return network
-
-    return network_fn
-
+@register("mlp_spectralnormalized")
+def mlp_spectralnormalized(num_layers=2, num_hidden=64, activation=tf.tanh):
+    return mlp_network(num_layers, num_hidden, activation, spectral_normalized = True)
 
 @register("cnn")
 def cnn(**conv_kwargs):
@@ -68,6 +75,10 @@ def cnn(**conv_kwargs):
         return nature_cnn(input_shape, **conv_kwargs)
     return network_fn
 
+@register("cnn_spectralnormalized")
+def cnn_spectralnormalized(**conv_kwargs):
+    print(f"CNN spectralnormalized not implemented yet")
+    raise NotImplementedError
 
 @register("conv_only")
 def conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs):
@@ -95,8 +106,12 @@ def conv_only(convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], **conv_kwargs):
         return network
     return network_fn
 
+@register("conv_only_spectralnormalized")
+def conv_only_spectralnormalized(**conv_kwargs):
+    print(f"Conv-only spectralnormalized not implemented yet")
+    raise NotImplementedError
 
-def get_network_builder(name):
+def get_network_builder(name, spectral_normalized:bool = False):
     """
     If you want to register your own network outside models.py, you just need:
 
@@ -111,7 +126,9 @@ def get_network_builder(name):
     """
     if callable(name):
         return name
-    elif name in mapping:
-        return mapping[name]
-    else:
-        raise ValueError('Unknown network type: {}'.format(name))
+    else :
+        name = name + '_spectralnormalized' if spectral_normalized else name
+        if name in mapping:
+            return mapping[name]
+        else:
+            raise ValueError('Unknown network type: {}'.format(name))
